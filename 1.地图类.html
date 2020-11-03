@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta http-equiv="X-UA-Compatible" content="ie=edge" />
+    <title>Document</title>
+    <style>
+      #map {
+        position: relative;
+        width: 400px;
+        height: 400px;
+        background: #000;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="map"></div>
+    <script>
+      class Map {
+        constructor(el, rect = 10) {
+          this.rect = rect;
+          this.data = [];
+          this.el = el;
+          this.rows = Math.ceil(Map.getStyle(el, "height") / rect); //向下取整
+          this.cells = Math.ceil(Map.getStyle(el, "width") / rect);
+          Map.setStyle(this.el, "height", this.rows * rect);
+          Map.setStyle(this.el, "width", this.rows * rect);
+        }
+        setData(newData) {
+          this.data = this.data.concat(newData);
+        }
+        clearData() {
+          this.data.length = 0;
+        }
+        include({ x, y }) {
+          //是否包含数据
+          return this.data.some(i => i.x == x && i.y == y);
+        }
+        render() {
+          this.el.innerHTML = this.data
+            .map(i => {
+              return `<span 
+                style="position:absolute; 
+                width:${this.rect}px; 
+                height:${this.rect}px; 
+                left:${i.x * this.rect}px; 
+                top:${i.y * this.rect}px;
+                background:${i.color}"
+                ></span>`;
+            })
+            .join("");
+        }
+        static getStyle(el, attr) {
+          return parseFloat(getComputedStyle(el)[attr]);
+        }
+        static setStyle(el, attr, val) {
+          el.style[attr] = val + "px";
+        }
+      }
+
+      let map = document.querySelector("#map");
+      let gameMap = new Map(map, 10);
+      console.log(gameMap);
+      gameMap.setData([
+        {
+          x: 0,
+          y: 10,
+          color: "green"
+        },
+        {
+          x: 1,
+          y: 10,
+          color: "white"
+        },
+        {
+          x: 2,
+          y: 10,
+          color: "white"
+        },
+        {
+          x: 3,
+          y: 10,
+          color: "white"
+        }
+      ]);
+      // gameMap.clearData();
+      gameMap.setData({
+        x: 10,
+        y: 10,
+        color: "red"
+      });
+      gameMap.render();
+      console.log(gameMap.include({ x: 10, y: 20 }));
+      console.log(gameMap.include({ x: 1, y: 10 }));
+    </script>
+  </body>
+</html>

@@ -1,0 +1,343 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta http-equiv="X-UA-Compatible" content="ie=edge" />
+    <title>Document</title>
+    <style>
+      #map {
+        position: relative;
+        width: 400px;
+        height: 400px;
+        background: #000;
+      }
+    </style>
+  </head>
+  <body>
+    <h1 id="score"></h1>
+    <div id="map"></div>
+    <script>
+      class Map {
+        constructor(el, rect = 10) {
+          this.rect = rect;
+          this.data = [];
+          this.el = el;
+          this.rows = Math.ceil(Map.getStyle(el, "height") / rect); //向下取整
+          this.cells = Math.ceil(Map.getStyle(el, "width") / rect);
+          Map.setStyle(this.el, "height", this.rows * rect);
+          Map.setStyle(this.el, "width", this.rows * rect);
+        }
+        setData(newData) {
+          this.data = this.data.concat(newData);
+        }
+        clearData() {
+          this.data.length = 0;
+        }
+        include({ x, y }) {
+          //是否包含数据
+          return this.data.some(i => i.x == x && i.y == y);
+        }
+        render() {
+          this.el.innerHTML = this.data
+            .map(i => {
+              return `<span
+                style="position:absolute;
+                width:${this.rect}px;
+                height:${this.rect}px;
+                left:${i.x * this.rect}px;
+                top:${i.y * this.rect}px;
+                background:${i.color}"
+                ></span>`;
+            })
+            .join("");
+        }
+        static getStyle(el, attr) {
+          return parseFloat(getComputedStyle(el)[attr]);
+        }
+        static setStyle(el, attr, val) {
+          el.style[attr] = val + "px";
+        }
+      }
+
+      class Food {
+        constructor(map, colors = ["red", "blue", "yellow", "pink"]) {
+          this.map = map;
+          this.data = null;
+          this.colors = colors;
+          //init
+          this.create();
+        }
+
+        create() {
+          let x = Math.floor(Math.random() * this.map.cells);
+          let y = Math.floor(Math.random() * this.map.rows);
+          let color = this.colors[parseInt(Math.random() * this.colors.length)];
+          this.data = { x, y, color };
+
+          //判断是否被包含
+          if (this.map.include(this.data)) {
+            this.create();
+          }
+          //set data for map
+          this.map.setData(this.data);
+        }
+      }
+
+      class Snake {
+        constructor(map, food) {
+          this.data = [
+            { x: 6, y: 4, color: "blue" },
+            { x: 5, y: 4, color: "white" },
+            { x: 4, y: 4, color: "white" },
+            { x: 3, y: 4, color: "white" },
+            { x: 3, y: 4, color: "white" }
+          ];
+          this.map = map;
+          this.food = food;
+          this.direction = "right";
+          this.map.setData(this.data);
+        }
+
+        move() {
+          //在移动之后，才能加新的
+          let i = this.data.length - 1;
+          this.lastData = {
+            x: this.data[i].x,
+            y: this.data[i].y,
+            // color: this.data[i].color
+            color: "red"
+          };
+          /*让后面每一个格走到前面 处理蛇身体部分*/
+          for (i; i > 0; i--) {
+            this.data[i].x = this.data[i - 1].x;
+            this.data[i].y = this.data[i - 1].y;
+          }
+          //处理蛇头部分
+          switch (this.direction) {
+            case "left":
+              this.data[0].x--;
+              break;
+            case "right":
+              this.data[0].x++;
+              break;
+            case "top":
+              this.data[0].y--;
+              break;
+            case "bottom":
+              this.data[0].y++;
+              break;
+          }
+        }
+
+        changeDir(dir) {
+          let lr = ["left", "right"];
+          let tp = ["top", "bottom"];
+          //在左右移动 只能修改上下 ，如果是上下移动 修改只能左右移动
+          if (lr.includes(this.direction)) {
+            if (lr.includes(dir)) return false;
+          } else {
+            if (tp.includes(this.direction)) {
+              if (tp.includes(dir)) return false;
+            }
+          }
+          this.direction = dir;
+          return true;
+        }
+
+        eatFood() {
+          //吃到食物， 长变长
+          this.data.push(this.lastData);
+        }
+      }
+
+      class Game {
+        //游戏的控制类
+        constructor(el, rect, toControl = null, toScore = null) {
+          this.map = new Map(el, rect);
+          this.food = new Food(this.map);
+          this.snake = new Snake(this.map);
+          this.map.render();
+          this.timer = 0;
+          this.interval = 200;
+          this.toControl = toControl;
+          this.keyDown = this.keyDown.bind(this);
+          this.score = 0;
+          this.toScore = toScore;
+          this.control();
+        }
+
+        start() {
+          this.move();
+        }
+
+        stop() {
+          clearInterval(this.timer);
+        }
+
+        //分数改变
+        changeScore(score) {
+          //用户自定义的改变
+          this.toScore && this.toScore(score);
+        }
+        //控制移动
+        move() {
+          this.stop();
+          this.timer = setInterval(() => {
+            this.snake.move();
+            this.map.clearData();
+            //吃食物
+            if (this.isEat()) {
+              this.score++;
+              this.snake.eatFood();
+              this.food.create();
+              //更新分数
+              this.changeScore(this.score);
+
+              //设置更新间隔
+              this.interval *= 0.9;
+              this.stop();
+              this.start();
+              if (this.score >= 2) {
+                this.over(1);
+              }
+            }
+            //判断是否结束
+            if (this.isOver()) {
+              this.over(0);
+              return;
+            }
+            this.map.setData(this.snake.data);
+            this.map.setData(this.food.data);
+
+            this.map.render();
+          }, this.interval);
+        }
+
+        isEat() {
+          //判断是否吃到食物
+          return (
+            this.snake.data[0].x === this.food.data.x &&
+            this.snake.data[0].y === this.food.data.y
+          );
+        }
+        isOver() {
+          //判断蛇头
+          if (
+            this.snake.data[0].x < 0 ||
+            this.snake.data[0].x >= this.map.cells ||
+            this.snake.data[0].y < 0 ||
+            this.snake.data[0].y >= this.map.rows
+          ) {
+            return true;
+          }
+          //判断蛇撞到自己
+          for (let i = 1; i < this.snake.data.length; i++) {
+            if (
+              this.snake.data[0].x === this.snake.data[i].x &&
+              this.snake.data[0].y === this.snake.data[i].y
+            ) {
+              return true;
+            }
+          }
+          return false;
+        }
+        /*
+          ovarState:
+            0 中间停止
+            1 胜利了游戏结束
+        */
+        over(overState = 0) {
+          if (overState) {
+            //胜利
+            this.toWin && this.toWin();
+          } else {
+            this.toOver && this.toOver();
+          }
+
+          this.stop();
+        }
+
+        keyDown({ keyCode }) {
+          console.log(keyCode);
+          let isDir;
+          switch (keyCode) {
+            case 37:
+              isDir = this.snake.changeDir("left");
+              break;
+            case 38:
+              isDir = this.snake.changeDir("top");
+              break;
+            case 39:
+              isDir = this.snake.changeDir("right");
+              break;
+            case 40:
+              isDir = this.snake.changeDir("bottom");
+              break;
+          }
+
+          console.log(isDir);
+        }
+        //游戏控制器
+        control() {
+          //用户是否添加控制器
+          if (this.toControl) {
+            this.toControl();
+            return;
+          }
+          window.addEventListener("keydown", this.keyDown);
+        }
+
+        addControl(fn) {
+          fn.call(this);
+          window.removeEventListener("keydown", this.keyDown);
+        }
+      }
+
+      {
+        let map = document.querySelector("#map");
+        // let gameMap = new Map(map, 10);
+        // let gameFood = new Food(gameMap);
+        // let gameSnake = new Snake(gameMap, gameFood);
+        let game = new Game(map, 10);
+        // game.addControl(function() {
+        //   window.addEventListener("keydown", ({ keyCode }) => {
+        //     // w 87 上
+        //     //d 68   右
+        //     //s 83 下
+        //     //a 65 左
+        //     let isDir;
+        //     switch (keyCode) {
+        //       case 65:
+        //         isDir = this.snake.changeDir("left");
+        //         break;
+        //       case 87:
+        //         isDir = this.snake.changeDir("top");
+        //         break;
+        //       case 68:
+        //         isDir = this.snake.changeDir("right");
+        //         break;
+        //       case 83:
+        //         isDir = this.snake.changeDir("bottom");
+        //         break;
+        //     }
+        //   });
+        // });
+        let scoreEl = document.getElementById("score");
+        game.toScore = score => {
+          scoreEl.innerHTML = score;
+        };
+        console.log(game.toScore);
+        document.addEventListener("click", () => {
+          game.start();
+        });
+        game.toOver = function() {
+          alert("游戏结束");
+        };
+        game.toWin = function() {
+          alert("太棒了 您完成了游戏");
+        };
+      }
+    </script>
+  </body>
+</html>

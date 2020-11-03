@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta http-equiv="X-UA-Compatible" content="ie=edge" />
+    <title>Document</title>
+    <style>
+      #map {
+        position: relative;
+        width: 400px;
+        height: 400px;
+        background: #000;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="map"></div>
+    <script>
+      class Map {
+        constructor(el, rect = 10) {
+          this.rect = rect;
+          this.data = [];
+          this.el = el;
+          this.rows = Math.ceil(Map.getStyle(el, "height") / rect); //向下取整
+          this.cells = Math.ceil(Map.getStyle(el, "width") / rect);
+          Map.setStyle(this.el, "height", this.rows * rect);
+          Map.setStyle(this.el, "width", this.rows * rect);
+        }
+        setData(newData) {
+          this.data = this.data.concat(newData);
+        }
+        clearData() {
+          this.data.length = 0;
+        }
+        include({ x, y }) {
+          //是否包含数据
+          return this.data.some(i => i.x == x && i.y == y);
+        }
+        render() {
+          this.el.innerHTML = this.data
+            .map(i => {
+              return `<span 
+                style="position:absolute; 
+                width:${this.rect}px; 
+                height:${this.rect}px; 
+                left:${i.x * this.rect}px; 
+                top:${i.y * this.rect}px;
+                background:${i.color}"
+                ></span>`;
+            })
+            .join("");
+        }
+        static getStyle(el, attr) {
+          return parseFloat(getComputedStyle(el)[attr]);
+        }
+        static setStyle(el, attr, val) {
+          el.style[attr] = val + "px";
+        }
+      }
+
+      class Food {
+        constructor(map, colors = ["red", "blue", "yellow", "pink"]) {
+          this.map = map;
+          this.data = null;
+          this.colors = colors;
+        }
+
+        create() {
+          //创建满了以后会 stackoverflow
+          // if (this.createdFoodLen == this.totalLen) {
+          //   console.log(this.createdFoodLen);
+          //   return;
+          // }
+          let x = Math.floor(Math.random() * this.map.cells);
+          let y = Math.floor(Math.random() * this.map.rows);
+          let color = this.colors[parseInt(Math.random() * this.colors.length)];
+          this.data = { x, y, color };
+
+          //判断是否被包含
+          if (this.map.include(this.data)) {
+            this.create();
+          }
+        }
+      }
+
+      let map = document.querySelector("#map");
+      let gameMap = new Map(map, 40);
+      let gameFood = new Food(gameMap);
+
+      setInterval(() => {
+        gameFood.create();
+        gameMap.setData(gameFood.data);
+        gameMap.render();
+      }, 200);
+    </script>
+  </body>
+</html>

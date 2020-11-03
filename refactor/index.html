@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta http-equiv="X-UA-Compatible" content="ie=edge" />
+    <title>Document</title>
+    <style>
+      #map {
+        position: relative;
+        width: 400px;
+        height: 400px;
+        background: #000;
+      }
+    </style>
+  </head>
+  <body>
+    <h1 id="score">0</h1>
+    <div id="map"></div>
+    <script type="module">
+      import Game from "./js/game.js";
+      {
+        let map = document.querySelector("#map");
+        let scoreEl = document.getElementById("score");
+        let game = new Game(map, 10);
+
+        game.on("score:change", score => {
+          scoreEl.innerHTML = score;
+        });
+        document.addEventListener("click", () => {
+          game.start();
+        });
+        //change to event
+        game.on("over", () => {
+          alert("游戏结束");
+        });
+        game.on("win", () => {
+          alert("太棒了 您完成了游戏");
+        });
+      }
+    </script>
+  </body>
+</html>
